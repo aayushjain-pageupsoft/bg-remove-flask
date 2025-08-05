@@ -1,0 +1,9 @@
+Flask
+Flask-CORS
+rembg
+Pillow
+numpy
+gunicorn
+python-dotenv
+Werkzeug
+onnxruntime

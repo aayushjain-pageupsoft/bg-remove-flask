@@ -1,0 +1,20 @@
+# Flask Configuration
+SECRET_KEY=secret_key
+DEBUG=False
+FLASK_ENV=development
+
+# File Upload Settings
+MAX_FILE_SIZE=16777216 # in mb = 
+UPLOAD_FOLDER=temp_uploads
+
+# Image Processing Settings
+MAX_IMAGE_WIDTH=4000
+MAX_IMAGE_HEIGHT=4000
+MIN_IMAGE_SIZE=100
+
+# API Settings
+RATE_LIMIT=1500 per hour 
+CORS_ORIGINS=*
+
+# Server Settings
+PORT=8000
