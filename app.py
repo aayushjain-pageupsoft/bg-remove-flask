@@ -1,73 +1,31 @@
 """
-Minimal Flask API for Railway deployment with model preloading
+Minimal Flask API for Railway deployment - simplified for reliability
 """
 import os
 import logging
-import threading
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image
 import io
-from rembg import remove, new_session
+from rembg import remove
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global variables for model management
-rembg_session = None
-model_loaded = False
-model_lock = threading.Lock()
-
 # Create Flask app
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # Reduced to 8MB for Railway
 
 # Enable CORS
 CORS(app)
 
-def initialize_model():
-    """Initialize the rembg model in a thread-safe way"""
-    global rembg_session, model_loaded
-    
-    with model_lock:
-        if not model_loaded:
-            try:
-                logger.info("🚀 Initializing background removal model...")
-                rembg_session = new_session('u2net')
-                
-                # Warm up the model with a dummy image
-                dummy_image = Image.new('RGB', (100, 100), color='white')
-                remove(dummy_image, session=rembg_session)
-                
-                model_loaded = True
-                logger.info("✅ Model initialized and warmed up successfully!")
-                return True
-            except Exception as e:
-                logger.error(f"❌ Failed to initialize model: {e}")
-                return False
-    
-    return model_loaded
-
-def get_rembg_session():
-    """Get the rembg session, initializing if necessary"""
-    global rembg_session, model_loaded
-    
-    if not model_loaded:
-        if not initialize_model():
-            return None
-    
-    return rembg_session
-
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    logger.info("Health check called")
     return jsonify({
         'status': 'healthy',
-        'service': 'background-removal-api',
-        'port': os.environ.get('PORT', '8000'),
-        'model_loaded': model_loaded
+        'service': 'background-removal-api'
     })
 
 @app.route('/', methods=['GET'])
@@ -76,139 +34,87 @@ def home():
     return jsonify({
         'message': 'Background Removal API is running',
         'health': '/health',
-        'warmup': '/warmup',
         'remove': '/remove-background',
-        'model_loaded': model_loaded
+        'info': '/api-info'
     })
-
-@app.route('/warmup', methods=['POST', 'GET'])
-def warmup_model():
-    """Warmup endpoint to preload the model"""
-    try:
-        logger.info("Model warmup requested")
-        if initialize_model():
-            return jsonify({
-                'status': 'success',
-                'message': 'Model loaded and warmed up successfully',
-                'model_loaded': True
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to load model',
-                'model_loaded': False
-            }), 503
-    except Exception as e:
-        logger.error(f"Warmup failed: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Warmup failed: {str(e)}',
-            'model_loaded': False
-        }), 500
 
 @app.route('/remove-background', methods=['POST'])
 def remove_background():
     """Remove background from uploaded image"""
     try:
+        logger.info("Background removal request received")
+        
         # Check if image file is provided
         if 'image' not in request.files:
-            return jsonify({
-                'error': 'No image provided',
-                'message': 'Please upload an image file'
-            }), 400
+            return jsonify({'error': 'No image provided'}), 400
         
         file = request.files['image']
-        
         if file.filename == '':
-            return jsonify({
-                'error': 'No image selected',
-                'message': 'Please select an image file'
-            }), 400
+            return jsonify({'error': 'No image selected'}), 400
         
         # Validate file extension
         allowed_extensions = {'png', 'jpg', 'jpeg', 'webp', 'bmp'}
         if not ('.' in file.filename and 
                 file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
-            return jsonify({
-                'error': 'Invalid file type',
-                'message': f'Supported formats: {", ".join(allowed_extensions)}'
-            }), 400
+            return jsonify({'error': 'Invalid file type'}), 400
         
-        # Process image
-        logger.info(f"Processing image: {file.filename}")
+        logger.info(f"Processing {file.filename}")
         
-        # Load and process image
+        # Load image
         input_image = Image.open(file.stream)
-        logger.info(f"Image loaded: {input_image.size}")
         
-        # Remove background using session for better performance
-        session = get_rembg_session()
-        if session is None:
-            logger.error("Model not available")
-            return jsonify({
-                'error': 'Model loading failed',
-                'message': 'Background removal model is not available. Please try again.'
-            }), 503
+        # Optimize image size for faster processing
+        max_size = 1024
+        if max(input_image.size) > max_size:
+            ratio = max_size / max(input_image.size)
+            new_size = tuple(int(dim * ratio) for dim in input_image.size)
+            input_image = input_image.resize(new_size, Image.Resampling.LANCZOS)
+            logger.info(f"Resized to {new_size}")
         
-        logger.info("Removing background with initialized model...")
-        output_image = remove(input_image, session=session)
+        logger.info("Starting background removal...")
+        
+        # Remove background (simplified approach)
+        output_image = remove(input_image)
+        
         logger.info("Background removal completed")
         
-        # Get background color if provided
+        # Handle background color if provided
         background_color = request.form.get('background_color', '')
-        
-        # Add background color if specified
         if background_color and background_color.startswith('#') and len(background_color) == 7:
             try:
-                # Create background with color
                 if output_image.mode != 'RGBA':
                     output_image = output_image.convert('RGBA')
                 
-                # Create colored background
                 colored_bg = Image.new('RGBA', output_image.size, background_color)
-                
-                # Composite images
-                final_image = Image.alpha_composite(colored_bg, output_image)
+                output_image = Image.alpha_composite(colored_bg, output_image)
                 
                 # Convert to RGB
-                output_image = Image.new('RGB', final_image.size, (255, 255, 255))
-                output_image.paste(final_image, mask=final_image.split()[-1] if len(final_image.split()) == 4 else None)
+                final_img = Image.new('RGB', output_image.size, (255, 255, 255))
+                final_img.paste(output_image, mask=output_image.split()[-1])
+                output_image = final_img
                 
-                logger.info(f"Added background color: {background_color}")
             except Exception as e:
-                logger.warning(f"Failed to add background color: {str(e)}")
+                logger.warning(f"Background color failed: {e}")
         
         # Convert to bytes
         img_buffer = io.BytesIO()
-        output_format = 'PNG'
-        output_image.save(img_buffer, format=output_format)
+        output_image.save(img_buffer, format='PNG', optimize=True)
         img_buffer.seek(0)
         
-        logger.info("Image processing completed successfully")
+        logger.info("Sending response")
         
-        # Return processed image
-        response = send_file(
+        return send_file(
             img_buffer,
             mimetype='image/png',
             as_attachment=True,
-            download_name=f'removed_bg_{file.filename}'
+            download_name=f'bg_removed_{file.filename.split(".")[0]}.png'
         )
         
-        # Add cache control headers
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        
-        return response
-        
     except Exception as e:
-        import traceback
-        logger.error(f"Error processing image: {str(e)}")
-        logger.error(f"Full traceback: {traceback.format_exc()}")
+        logger.error(f"Processing failed: {str(e)}")
         return jsonify({
             'error': 'Processing failed',
-            'message': 'Failed to process image. Please try again with a different image.',
-            'debug': str(e)
+            'message': str(e)
         }), 500
 
 @app.route('/api-info', methods=['GET'])
@@ -216,41 +122,24 @@ def api_info():
     """API information endpoint"""
     return jsonify({
         'service': 'Background Removal API',
-        'version': '1.1.0',
-        'model_loaded': model_loaded,
+        'version': '1.2.0',
         'endpoints': {
-            'GET /': 'Home page with API status',
-            'GET /health': 'Health check with model status',
-            'GET|POST /warmup': 'Preload the background removal model',
+            'GET /': 'Home page',
+            'GET /health': 'Health check',
             'POST /remove-background': {
                 'description': 'Remove background from uploaded image',
                 'parameters': {
                     'image': 'Image file (required)',
                     'background_color': 'Hex color like #FF0000 (optional)'
-                },
-                'note': 'First request may take longer if model is not preloaded'
+                }
             }
         },
         'supported_formats': ['png', 'jpg', 'jpeg', 'webp', 'bmp'],
-        'tips': [
-            'Call /warmup first to preload the model for faster processing',
-            'Model loads automatically in background on app startup',
-            'Check /health to see if model is ready'
-        ]
+        'note': 'Images are automatically resized to 1024px max for faster processing'
     })
 
 # For gunicorn WSGI
 application = app
-
-# Initialize model in background thread on startup
-def startup_model_init():
-    """Initialize model in background on app startup"""
-    logger.info("Starting background model initialization...")
-    initialize_model()
-
-# Start model initialization in background
-startup_thread = threading.Thread(target=startup_model_init, daemon=True)
-startup_thread.start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))

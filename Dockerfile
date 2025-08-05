@@ -20,5 +20,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application
 COPY . .
 
-# Run the app
-CMD ["python", "app.py"]
+# Run with gunicorn for better timeout handling
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "180", "--log-level", "info", "app:application"]
