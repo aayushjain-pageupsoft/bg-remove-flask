@@ -23,14 +23,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Make startup script executable
-RUN chmod +x start.sh
-
 # Set default port
 ENV PORT=8000
 
 # Expose port
 EXPOSE 8000
 
-# Use startup script for better debugging
-CMD ["./start.sh"]
+# Direct command without shell script
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile - --error-logfile - app:application

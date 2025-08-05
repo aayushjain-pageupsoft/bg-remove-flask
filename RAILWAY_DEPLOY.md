@@ -8,31 +8,28 @@
    - Click "Deploy from GitHub repo"
    - Select this repository
 
-2. **Environment Variables (Optional):**
-   - Set these in Railway dashboard if needed:
-   ```
-   SECRET_KEY=your-production-secret-key
-   MAX_FILE_SIZE=16777216
-   CORS_ORIGINS=*
-   ```
+2. **Environment Variables:**
+   - Railway automatically sets PORT (no configuration needed)
+   - All other settings use sensible defaults
 
 3. **Deployment:**
    - Railway will automatically detect the Dockerfile
-   - Uses Docker for consistent builds across environments
+   - Uses minimal Flask app (app.py) for faster startup
    - Health check available at `/health`
-   - Automatic restarts on failure
+   - Home page available at `/` with API info
 
 ## Configuration Files
 
-- `Dockerfile`: Container build configuration with system dependencies
+- `app.py`: Minimal Flask application (main entry point)
+- `Dockerfile`: Container build configuration with system dependencies  
 - `Procfile`: Gunicorn configuration for Railway (backup)
 - `railway.json`: Railway-specific deployment settings
-- `config.py`: Application configuration with environment variables
 
 ## API Endpoints
 
 After deployment, your API will be available at:
-- `GET /health` - Health check
+- `GET /` - Home page with API information
+- `GET /health` - Health check (returns status and port info)
 - `POST /remove-background` - Background removal
 - `GET /api-info` - API documentation
 

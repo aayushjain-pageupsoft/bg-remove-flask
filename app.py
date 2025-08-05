@@ -1,8 +1,7 @@
 """
-Railway-optimized Flask API for background removal
+Minimal Flask API for Railway deployment
 """
 import os
-import sys
 import logging
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
@@ -10,56 +9,34 @@ from PIL import Image
 import io
 from rembg import remove
 
-# Add the parent directory to Python path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from config import Config
-
-# Configure logging for Railway
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ✅ PRE-LOAD MODEL AT STARTUP (Skip if memory constrained)
-preload_model = os.environ.get('PRELOAD_MODEL', 'false').lower() == 'true'
-if preload_model:
-    logger.info("🚀 Pre-loading background removal model...")
-    try:
-        # Force model loading with a dummy image
-        dummy_image = Image.new('RGB', (100, 100), color='white')
-        remove(dummy_image)
-        logger.info("✅ Model loaded successfully! API ready for requests.")
-    except Exception as e:
-        logger.error(f"❌ Failed to preload model: {e}")
-        logger.info("Continuing without preload - model will load on first request")
-else:
-    logger.info("Model preloading disabled - will load on first request")
-
-    
-# Create Flask app with Railway configuration
+# Create Flask app
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
-# Load configuration based on environment
-env = os.environ.get('FLASK_ENV', 'production')
-if env == 'development':
-    app.config.from_object(Config)
-else:
-    app.config.from_object(Config)
-
-# Set file upload limit
-app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
-
-# Enable CORS with configuration
-CORS(app, origins=Config.CORS_ORIGINS.split(',') if Config.CORS_ORIGINS != '*' else '*')
+# Enable CORS
+CORS(app)
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    logger.info("Health check called")
     return jsonify({
         'status': 'healthy',
-        'service': 'background-removal-api'
+        'service': 'background-removal-api',
+        'port': os.environ.get('PORT', '8000')
+    })
+
+@app.route('/', methods=['GET'])
+def home():
+    """Home endpoint"""
+    return jsonify({
+        'message': 'Background Removal API is running',
+        'health': '/health',
+        'remove': '/remove-background'
     })
 
 @app.route('/remove-background', methods=['POST'])
@@ -81,12 +58,13 @@ def remove_background():
                 'message': 'Please select an image file'
             }), 400
         
-        # Validate file extension using config
+        # Validate file extension
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp', 'bmp'}
         if not ('.' in file.filename and 
-                file.filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS):
+                file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
             return jsonify({
                 'error': 'Invalid file type',
-                'message': f'Supported formats: {", ".join(Config.ALLOWED_EXTENSIONS)}'
+                'message': f'Supported formats: {", ".join(allowed_extensions)}'
             }), 400
         
         # Process image
@@ -154,7 +132,7 @@ def remove_background():
         return jsonify({
             'error': 'Processing failed',
             'message': 'Failed to process image. Please try again with a different image.',
-            'debug': str(e) if app.debug else None
+            'debug': str(e)
         }), 500
 
 @app.route('/api-info', methods=['GET'])
@@ -172,7 +150,7 @@ def api_info():
                 }
             }
         },
-        'supported_formats': list(Config.ALLOWED_EXTENSIONS)
+        'supported_formats': ['png', 'jpg', 'jpeg', 'webp', 'bmp']
     })
 
 # For gunicorn WSGI
