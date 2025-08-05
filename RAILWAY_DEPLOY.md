@@ -28,17 +28,32 @@
 ## API Endpoints
 
 After deployment, your API will be available at:
-- `GET /` - Home page with API information
-- `GET /health` - Health check (returns status and port info)
-- `POST /remove-background` - Background removal
-- `GET /api-info` - API documentation
+- `GET /` - Home page with API information and model status
+- `GET /health` - Health check (includes model loading status)
+- `GET|POST /warmup` - Preload the background removal model for faster processing
+- `POST /remove-background` - Background removal (uses preloaded model)
+- `GET /api-info` - API documentation with usage tips
 
 ## Testing
 
 Test your deployment:
 ```bash
+# Check health and model status
 curl https://your-app.railway.app/health
+
+# Warm up the model (recommended on first use)
+curl -X POST https://your-app.railway.app/warmup
+
+# Test background removal
+curl -X POST -F "image=@your-image.jpg" https://your-app.railway.app/remove-background --output result.png
 ```
+
+## Performance Tips
+
+- **First Request**: Call `/warmup` first to preload the model
+- **Model Status**: Check `/health` to see if the model is ready
+- **Background Loading**: The model loads automatically on app startup
+- **Session Reuse**: Subsequent requests will be much faster
 
 ## Memory Optimization
 
