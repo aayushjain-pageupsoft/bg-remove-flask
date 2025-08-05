@@ -17,15 +17,15 @@
    ```
 
 3. **Deployment:**
-   - Railway will automatically detect the configuration
-   - Uses nixpacks.toml for build configuration
-   - Uses Procfile for start command
+   - Railway will automatically detect the Dockerfile
+   - Uses Docker for consistent builds across environments
    - Health check available at `/health`
+   - Automatic restarts on failure
 
 ## Configuration Files
 
-- `Procfile`: Gunicorn configuration for Railway
-- `nixpacks.toml`: Build dependencies and commands
+- `Dockerfile`: Container build configuration with system dependencies
+- `Procfile`: Gunicorn configuration for Railway (backup)
 - `railway.json`: Railway-specific deployment settings
 - `config.py`: Application configuration with environment variables
 
