@@ -1,0 +1,13 @@
+venv/
+.env
+.git/
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.DS_Store
+*.log
+README.md
+RAILWAY_DEPLOY.md

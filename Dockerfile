@@ -29,5 +29,5 @@ ENV PORT=8000
 # Expose port
 EXPOSE 8000
 
-# Direct command without shell script
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile - --error-logfile - app:application
+# Use shell form to handle PORT environment variable
+CMD gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 120 --log-level info --access-logfile - --error-logfile - app:application
