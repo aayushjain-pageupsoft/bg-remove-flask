@@ -13,6 +13,17 @@ from rembg import remove
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ✅ PRE-LOAD MODEL AT STARTUP TO AVOID COLD START DELAYS
+logger.info("🚀 Pre-loading background removal model...")
+try:
+    # Force model loading with a dummy image
+    dummy_image = Image.new('RGB', (100, 100), color='white')
+    remove(dummy_image)
+    logger.info("✅ Model loaded successfully! API ready for requests.")
+except Exception as e:
+    logger.error(f"❌ Failed to preload model: {e}")
+
+    
 # Create Flask app
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
