@@ -1,6 +1,8 @@
 FROM python:3.9-slim
 
-# Install system dependencies
+WORKDIR /app
+
+# Install system dependencies for image processing
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -10,24 +12,13 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
-# Copy requirements first for better caching
+# Copy and install Python dependencies
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application
 COPY . .
 
-# Set default port
-ENV PORT=8000
-
-# Expose port
-EXPOSE 8000
-
-# Use shell form to handle PORT environment variable
-CMD gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 120 --log-level info --access-logfile - --error-logfile - app:application
+# Run the app
+CMD ["python", "app.py"]
