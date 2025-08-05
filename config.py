@@ -15,7 +15,7 @@ class Config:
     DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
     
     # File upload settings
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_FILE_SIZE', 8 * 1024 * 1024))  # 8MB
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_FILE_SIZE', 16 * 1024 * 1024))  # 16MB for Railway
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'temp_uploads')
     
     # Image processing settings

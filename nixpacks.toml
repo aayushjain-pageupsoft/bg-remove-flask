@@ -1,11 +1,14 @@
 [phases.setup]
-nixPkgs = ["python39", "libGL", "glib", "libmagic"]
+nixPkgs = ["python39", "libGL", "glib", "libmagic", "ffmpeg"]
 
 [phases.install]  
-cmds = ["pip install -r requirements.txt"]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
 
 [phases.build]
 cmds = ["echo 'Build phase complete'"]
 
 [start]
-cmd = "python api/app.py"
+cmd = "gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 300 --max-requests 1000 --preload api.app:application"

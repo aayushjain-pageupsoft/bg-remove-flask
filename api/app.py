@@ -1,7 +1,8 @@
 """
-Simplified Flask API for background removal
+Railway-optimized Flask API for background removal
 """
 import os
+import sys
 import logging
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
@@ -9,8 +10,16 @@ from PIL import Image
 import io
 from rembg import remove
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Add the parent directory to Python path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config import Config
+
+# Configure logging for Railway
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # ✅ PRE-LOAD MODEL AT STARTUP TO AVOID COLD START DELAYS
@@ -24,12 +33,21 @@ except Exception as e:
     logger.error(f"❌ Failed to preload model: {e}")
 
     
-# Create Flask app
+# Create Flask app with Railway configuration
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Enable CORS
-CORS(app)
+# Load configuration based on environment
+env = os.environ.get('FLASK_ENV', 'production')
+if env == 'development':
+    app.config.from_object(Config)
+else:
+    app.config.from_object(Config)
+
+# Set file upload limit
+app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+
+# Enable CORS with configuration
+CORS(app, origins=Config.CORS_ORIGINS.split(',') if Config.CORS_ORIGINS != '*' else '*')
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -58,13 +76,12 @@ def remove_background():
                 'message': 'Please select an image file'
             }), 400
         
-        # Validate file extension
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp', 'bmp'}
+        # Validate file extension using config
         if not ('.' in file.filename and 
-                file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+                file.filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS):
             return jsonify({
                 'error': 'Invalid file type',
-                'message': f'Supported formats: {", ".join(allowed_extensions)}'
+                'message': f'Supported formats: {", ".join(Config.ALLOWED_EXTENSIONS)}'
             }), 400
         
         # Process image
@@ -150,10 +167,13 @@ def api_info():
                 }
             }
         },
-        'supported_formats': ['png', 'jpg', 'jpeg', 'webp', 'bmp']
+        'supported_formats': list(Config.ALLOWED_EXTENSIONS)
     })
 
+# For gunicorn WSGI
+application = app
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
+    port = int(os.environ.get('PORT', 8000))
     logger.info(f"Starting Background Removal API on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
