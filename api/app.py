@@ -143,6 +143,6 @@ def api_info():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8000))
+    port = int(os.environ.get('PORT', 10000))
     logger.info(f"Starting Background Removal API on port {port}")
     app.run(host='0.0.0.0', port=port, debug=True)
