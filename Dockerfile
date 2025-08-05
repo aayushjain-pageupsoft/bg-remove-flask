@@ -23,8 +23,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Expose port (Railway will set the PORT env var)
-EXPOSE $PORT
+# Make startup script executable
+RUN chmod +x start.sh
 
-# Start command
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 300 --max-requests 1000 --preload api.app:application
+# Set default port
+ENV PORT=8000
+
+# Expose port
+EXPOSE 8000
+
+# Use startup script for better debugging
+CMD ["./start.sh"]

@@ -22,15 +22,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ✅ PRE-LOAD MODEL AT STARTUP TO AVOID COLD START DELAYS
-logger.info("🚀 Pre-loading background removal model...")
-try:
-    # Force model loading with a dummy image
-    dummy_image = Image.new('RGB', (100, 100), color='white')
-    remove(dummy_image)
-    logger.info("✅ Model loaded successfully! API ready for requests.")
-except Exception as e:
-    logger.error(f"❌ Failed to preload model: {e}")
+# ✅ PRE-LOAD MODEL AT STARTUP (Skip if memory constrained)
+preload_model = os.environ.get('PRELOAD_MODEL', 'false').lower() == 'true'
+if preload_model:
+    logger.info("🚀 Pre-loading background removal model...")
+    try:
+        # Force model loading with a dummy image
+        dummy_image = Image.new('RGB', (100, 100), color='white')
+        remove(dummy_image)
+        logger.info("✅ Model loaded successfully! API ready for requests.")
+    except Exception as e:
+        logger.error(f"❌ Failed to preload model: {e}")
+        logger.info("Continuing without preload - model will load on first request")
+else:
+    logger.info("Model preloading disabled - will load on first request")
 
     
 # Create Flask app with Railway configuration
