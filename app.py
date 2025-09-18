@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Create Flask app
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # Reduced to 8MB for Railway
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB limit for Azure App Service
 
 # Enable CORS
 CORS(app)
@@ -144,4 +144,5 @@ application = app
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     logger.info(f"Starting Background Removal API on port {port}")
+    logger.info(f"Environment: {os.environ.get('WEBSITE_SITE_NAME', 'local')}")
     app.run(host='0.0.0.0', port=port, debug=False)

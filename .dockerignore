@@ -14,3 +14,5 @@ RAILWAY_DEPLOY.md
 utils/
 config.py
 test_*.py
+
+.viminfo
